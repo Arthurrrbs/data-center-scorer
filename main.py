@@ -14,10 +14,10 @@ if st.button('🔄 Recharger la Carte'):
 # --- 3. Charger les données Communes ---
 @st.cache_data
 def load_data():
-    df = pd.read_csv('communes-france-2025.csv', sep=',')
+    df = pd.read_csv('communes-france_2025.csv', sep=',')
     return df
 
-df = pd.read_csv('communes-france-2025.csv', sep=',')
+df = pd.read_csv('communes-france_2025.csv', sep=',')
 
 df = load_data()
 
