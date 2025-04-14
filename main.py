@@ -9,7 +9,7 @@ st.title("Carte de Scoring des Communes pour Data Centers en France")
 
 # --- 2. Bouton pour Recharger la Carte ---
 if st.button('🔄 Recharger la Carte'):
-    st.rerun()  # ✅ nouvelle fonction Streamlit officielle
+    st.rerun()  # ✅ nouvelle méthode officielle Streamlit
 
 # --- 3. Charger les données Communes ---
 @st.cache_data
@@ -21,13 +21,13 @@ df = load_data()
 
 st.write("Aperçu des données chargées :", df.head())
 
-# --- 4. Nettoyage des colonnes ---
-df.rename(columns={'Densité (hab/km²)': 'Densite', 'Code INSEE': 'Code_INSEE'}, inplace=True)
+# --- 4. Vérifier les colonnes ---
+st.write("Colonnes disponibles :", df.columns.tolist())
 
-# --- 5. Normaliser la Densité pour créer un Score ---
-df['Score'] = (df['Densite'] - df['Densite'].min()) / (df['Densite'].max() - df['Densite'].min())
+# --- 5. Calculer un Score basé sur la densité ---
+df['Score'] = (df['densite'] - df['densite'].min()) / (df['densite'].max() - df['densite'].min())
 
-st.write("Aperçu des Scores :", df[['Nom', 'Code_INSEE', 'Densite', 'Score']].head())
+st.write("Aperçu des Scores :", df[['Nom', 'Code INSEE', 'densite', 'Score']].head())
 
 # --- 6. Charger la carte GeoJSON des Communes ---
 geojson_url = 'https://france-geojson.gregoiredavid.fr/repo/communes.geojson'
@@ -36,12 +36,12 @@ geojson_data = requests.get(geojson_url).json()
 # --- 7. Créer la carte Folium ---
 m = folium.Map(location=[46.5, 2.5], zoom_start=6)
 
-# --- 8. Ajouter Choropleth ---
+# --- 8. Ajouter le Choropleth ---
 folium.Choropleth(
     geo_data=geojson_data,
     name='choropleth',
     data=df,
-    columns=['Code_INSEE', 'Score'],
+    columns=['Code INSEE', 'Score'],
     key_on='feature.properties.code',
     fill_color='YlGnBu',
     fill_opacity=0.7,
