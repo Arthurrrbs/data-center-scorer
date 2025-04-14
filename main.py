@@ -9,7 +9,7 @@ st.title("Carte de Scoring des Communes pour Data Centers en France")
 
 # --- 2. Bouton pour Recharger la Carte ---
 if st.button('🔄 Recharger la Carte'):
-    st.experimental_rerun()
+    st.rerun()  # ✅ nouvelle fonction Streamlit officielle
 
 # --- 3. Charger les données Communes ---
 @st.cache_data
