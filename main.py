@@ -19,6 +19,8 @@ def load_data():
 
 df = load_data()
 
+st.write(df.columns.tolist()) 
+
 st.write("Aperçu des données chargées :", df.head())
 
 # --- 4. Vérifier les colonnes ---
