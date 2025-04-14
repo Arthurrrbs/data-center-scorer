@@ -17,6 +17,8 @@ def load_data():
     df = pd.read_csv('communes-france-2025.csv', sep=',')
     return df
 
+df = pd.read_csv('communes-france-2025.csv', sep=',')
+
 df = load_data()
 
 st.write(df.columns.tolist()) 
