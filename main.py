@@ -8,61 +8,68 @@ st.set_page_config(layout="wide")
 st.title("🏙️ Scoring Communal via API Enedis – Consommation électrique")
 
 # -------------------------
-# Fonction API Enedis avec recherche floue et filtrage local
+# Fonction API Enedis avec recherche par code commune (INSEE) fiable
 
-def get_consommation(commune, annee="2022"):
+def get_consommation_by_insee(code_insee, annee="2022"):
     url = "https://data.enedis.fr/api/records/1.0/search/"
     params = {
         "dataset": "consommation-electrique-par-secteur-dactivite-commune",
-        "q": commune,
         "refine.annee": annee,
-        "rows": 20
+        "refine.code_insee_commune": code_insee,
+        "rows": 1
     }
     try:
         response = requests.get(url, params=params)
         records = response.json().get("records", [])
-        for record in records:
-            if record["fields"].get("nom_commune", "").lower() == commune.lower():
-                return record["fields"].get("consommation_mwh", None)
+        if records:
+            return records[0]["fields"].get("consommation_mwh", None)
         return None
     except Exception as e:
-        print(f"[Erreur API Enedis pour {commune}] {e}")
+        print(f"[Erreur API Enedis pour {code_insee}] {e}")
         return None
 
 # -------------------------
 # Fonction API Geo pour récupérer coordonnées GPS d'une commune
 
-def get_coords(commune_name):
-    url = f"https://geo.api.gouv.fr/communes?nom={commune_name}&fields=centre&format=json"
+def get_coords_from_insee(code_insee):
+    url = f"https://geo.api.gouv.fr/communes/{code_insee}?fields=centre&format=json"
     try:
         r = requests.get(url)
-        items = r.json()
-        if items:
-            return items[0]["centre"]["coordinates"][1], items[0]["centre"]["coordinates"][0]
+        item = r.json()
+        if item:
+            return item["centre"]["coordinates"][1], item["centre"]["coordinates"][0], item["nom"]
     except:
         pass
-    return None, None
+    return None, None, None
 
 # -------------------------
 # Slider de pondération
 poids = st.slider("🏠 Pondération de la variable consommation (entre 0 et 1)", 0.0, 1.0, 1.0, step=0.1)
 
 # -------------------------
-# Liste manuelle de communes avec noms compatibles Enedis
-communes_data = [{"nom": n} for n in [
-    "Nantes", "Strasbourg", "Angers", "Dijon", "Grenoble",
-    "Brest", "Le Mans", "Reims", "Tours", "Caen"
-]]
+# Liste de codes INSEE testés et fiables (top 10 communes connues)
+communes_codes = [
+    "34172",  # Montpellier
+    "44109",  # Nantes
+    "67482",  # Strasbourg
+    "49007",  # Angers
+    "21231",  # Dijon
+    "38185",  # Grenoble
+    "29019",  # Brest
+    "72181",  # Le Mans
+    "51454",  # Reims
+    "37261"   # Tours
+]
 
 data = []
 
 with st.spinner("🚀 Récupération des données Enedis en cours..."):
-    for c in communes_data:
-        conso = get_consommation(c["nom"])
-        lat, lon = get_coords(c["nom"])
+    for code in communes_codes:
+        conso = get_consommation_by_insee(code)
+        lat, lon, nom = get_coords_from_insee(code)
         if conso is not None and lat is not None:
             data.append({
-                "Commune": c["nom"],
+                "Commune": nom,
                 "Conso_MWh": conso,
                 "Lat": lat,
                 "Lon": lon
