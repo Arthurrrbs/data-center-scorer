@@ -25,7 +25,7 @@ def get_communes_france(limit=500):
 # -------------------------
 # Fonction API Enedis
 def get_consommation(commune, annee="2022"):
-    url = "/api/explore/v2.1/catalog/datasets/consommation-electrique-par-secteur-dactivite-commune/records?limit=20"
+    url = "https://data.enedis.fr/api/records/1.0/search/"
     params = {
         "dataset": "consommation-electrique-par-secteur-dactivite-commune",
         "refine.nom_commune": commune,
@@ -39,7 +39,8 @@ def get_consommation(commune, annee="2022"):
         if records:
             return records[0]["fields"].get("consommation_mwh", None)
         return None
-    except:
+    except Exception as e:
+        print(f"[Erreur API Enedis pour {commune}] {e}")
         return None
 
 # -------------------------
