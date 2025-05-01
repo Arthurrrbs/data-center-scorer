@@ -18,6 +18,24 @@ def load_data():
 
 df = load_data()
 
+# --- Vérification des noms de colonnes réels ---
+st.write("✅ Colonnes détectées :", df.columns.tolist())
+
+# --- Liste officielle attendue ---
+variables = [
+    "PIB_milliards", "Prix_Electricité", "Couverture_Fibre_%",
+    "Densite_pop_hab_km2", "Surface_disponible_km2", "Nb_entreprises",
+    "Nb_DataCenters_existants", "Taux_urbanisation_%",
+    "Acces_Eau_industrielle", "Indice_canicule"
+]
+
+# --- Identifier les variables manquantes ---
+missing_vars = [v for v in variables if v not in df.columns]
+if missing_vars:
+    st.error(f"🚨 Les colonnes suivantes sont absentes du fichier CSV : {missing_vars}")
+    st.stop()
+
+
 # --- Debug temporaire ---
 st.write("📌 Colonnes détectées :", df.columns.tolist())
 st.write("🔍 Aperçu du fichier :", df.head())
