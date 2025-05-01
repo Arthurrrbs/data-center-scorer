@@ -16,7 +16,6 @@ def get_consommation(commune, annee="2022"):
         "dataset": "consommation-electrique-par-secteur-dactivite-commune",
         "refine.nom_commune": commune,
         "refine.annee": annee,
-        "refine.secteur_d_activite": "Résidentiel",
         "rows": 1
     }
     try:
