@@ -15,8 +15,10 @@ if st.button("🔄 Recharger la carte"):
 @st.cache_data
 def load_data():
     df = pd.read_csv("score_variables_departements_101.csv", sep=",")
-    df = df.dropna(subset=["Département"])
+    df = df.dropna(subset=["Département"])  # supprime lignes vides
+    df = df[~df["Département"].str.strip().eq("")]  # supprime noms vides
     df = df.drop_duplicates(subset=["Département"])
+    df["Département"] = df["Département"].str.strip()
     return df
 
 df = load_data()
@@ -25,11 +27,11 @@ df = load_data()
 geojson_url = "https://france-geojson.gregoiredavid.fr/repo/departements.geojson"
 geojson_data = requests.get(geojson_url).json()
 
-# --- Vérification du nombre de lignes et correspondance des noms ---
-geojson_depts = [feature['properties']['nom'] for feature in geojson_data['features']]
+# --- Vérification des noms de départements ---
+geojson_depts = [feature['properties']['nom'].strip() for feature in geojson_data['features']]
 csv_depts = df["Département"].unique().tolist()
 
-st.write(f"🧾 Nombre de lignes dans le CSV : {len(df)}")
+st.write(f"📊 Nombre de départements dans le CSV : {len(df)}")
 
 missing = sorted(set(geojson_depts) - set(csv_depts))
 if missing:
@@ -81,7 +83,7 @@ folium.Choropleth(
 
 # --- Ajouter les scores dans les propriétés du GeoJSON
 for feature in geojson_data['features']:
-    dept_name = feature["properties"]["nom"]
+    dept_name = feature["properties"]["nom"].strip()
     row = df[df["Département"] == dept_name]
     if not row.empty:
         feature["properties"]["Score_Global"] = round(row.iloc[0]["Score_Global"], 2)
