@@ -8,14 +8,14 @@ st.set_page_config(layout="wide")
 st.title("🏙️ Scoring Communal via API Enedis – Consommation électrique")
 
 # -------------------------
-# Fonction API Enedis avec recherche par code commune (INSEE) fiable
+# Fonction API Enedis avec recherche par nom exact de commune
 
-def get_consommation_by_insee(code_insee, annee="2022"):
+def get_consommation(commune, annee="2022"):
     url = "https://data.enedis.fr/api/records/1.0/search/"
     params = {
         "dataset": "consommation-electrique-par-secteur-dactivite-commune",
         "refine.annee": annee,
-        "refine.code_insee_commune": code_insee,
+        "refine.nom_commune": commune,
         "rows": 1
     }
     try:
@@ -25,51 +25,43 @@ def get_consommation_by_insee(code_insee, annee="2022"):
             return records[0]["fields"].get("consommation_mwh", None)
         return None
     except Exception as e:
-        print(f"[Erreur API Enedis pour {code_insee}] {e}")
+        print(f"[Erreur API Enedis pour {commune}] {e}")
         return None
 
 # -------------------------
 # Fonction API Geo pour récupérer coordonnées GPS d'une commune
 
-def get_coords_from_insee(code_insee):
-    url = f"https://geo.api.gouv.fr/communes/{code_insee}?fields=centre&format=json"
+def get_coords(commune_name):
+    url = f"https://geo.api.gouv.fr/communes?nom={commune_name}&fields=centre&format=json"
     try:
         r = requests.get(url)
-        item = r.json()
-        if item:
-            return item["centre"]["coordinates"][1], item["centre"]["coordinates"][0], item["nom"]
+        items = r.json()
+        if items:
+            return items[0]["centre"]["coordinates"][1], items[0]["centre"]["coordinates"][0]
     except:
         pass
-    return None, None, None
+    return None, None
 
 # -------------------------
 # Slider de pondération
 poids = st.slider("🏠 Pondération de la variable consommation (entre 0 et 1)", 0.0, 1.0, 1.0, step=0.1)
 
 # -------------------------
-# Liste de codes INSEE testés et fiables (top 10 communes connues)
-communes_codes = [
-    "34172",  # Montpellier
-    "44109",  # Nantes
-    "67482",  # Strasbourg
-    "49007",  # Angers
-    "21231",  # Dijon
-    "38185",  # Grenoble
-    "29019",  # Brest
-    "72181",  # Le Mans
-    "51454",  # Reims
-    "37261"   # Tours
+# Liste de communes testées avec noms correspondant à l'API Enedis
+communes_list = [
+    "Montpellier", "Nantes", "Strasbourg", "Angers", "Dijon",
+    "Grenoble", "Brest", "Le Mans", "Reims", "Tours"
 ]
 
 data = []
 
 with st.spinner("🚀 Récupération des données Enedis en cours..."):
-    for code in communes_codes:
-        conso = get_consommation_by_insee(code)
-        lat, lon, nom = get_coords_from_insee(code)
+    for name in communes_list:
+        conso = get_consommation(name)
+        lat, lon = get_coords(name)
         if conso is not None and lat is not None:
             data.append({
-                "Commune": nom,
+                "Commune": name,
                 "Conso_MWh": conso,
                 "Lat": lat,
                 "Lon": lon
