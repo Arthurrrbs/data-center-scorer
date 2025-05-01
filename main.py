@@ -3,10 +3,9 @@ import requests
 import pandas as pd
 
 st.set_page_config(layout="wide")
-st.title("🔌 Test API Enedis – Commune de Montpellier (via code INSEE)")
+st.title("🔌 Test API Enedis – Commune de Montpellier (via recherche libre)")
 
-# Code INSEE de Montpellier
-code_insee = "34172"
+commune = "Montpellier"
 annee = "2022"
 data = []
 
@@ -14,8 +13,7 @@ with st.spinner("🔍 Récupération des données Enedis pour Montpellier (tous 
     url = "https://data.enedis.fr/api/records/1.0/search/"
     params = {
         "dataset": "consommation-electrique-par-secteur-dactivite-commune",
-        "refine.annee": annee,
-        "refine.code_insee_commune": code_insee,
+        "q": commune,
         "rows": 100
     }
     try:
@@ -26,18 +24,19 @@ with st.spinner("🔍 Récupération des données Enedis pour Montpellier (tous 
             secteurs = []
             for rec in records:
                 fields = rec.get("fields", {})
-                conso = fields.get("consommation_mwh", None)
-                secteur = fields.get("secteur_d_activite", "")
-                if conso:
-                    total_conso += conso
-                    secteurs.append({"Secteur": secteur, "Conso_MWh": conso})
+                if fields.get("nom_commune", "").lower() == commune.lower() and str(fields.get("annee")) == annee:
+                    conso = fields.get("consommation_mwh", None)
+                    secteur = fields.get("secteur_d_activite", "")
+                    if conso:
+                        total_conso += conso
+                        secteurs.append({"Secteur": secteur, "Conso_MWh": conso})
             if total_conso > 0:
-                data.append({"Commune": "Montpellier", "Consommation_Totale_MWh": total_conso})
+                data.append({"Commune": commune, "Consommation_Totale_MWh": total_conso})
                 secteurs_df = pd.DataFrame(secteurs)
         else:
-            st.error(f"❌ Erreur API pour Montpellier")
+            st.error(f"❌ Erreur API pour {commune}")
     except Exception as e:
-        st.error(f"❌ Exception pour Montpellier : {e}")
+        st.error(f"❌ Exception pour {commune} : {e}")
 
 if data:
     df = pd.DataFrame(data)
