@@ -8,22 +8,8 @@ st.set_page_config(layout="wide")
 st.title("🏙️ Scoring Communal via API Enedis – Consommation électrique")
 
 # -------------------------
-# Fonction API Geo pour communes
-def get_communes_france(limit=20):
-    url = "https://geo.api.gouv.fr/communes"
-    params = {
-        "fields": "nom,population,centre",
-        "format": "json",
-        "geometry": "centre"
-    }
-    response = requests.get(url, params=params)
-    data = response.json()
-    # Trier par population descendante et garder les n plus grandes
-    data = sorted([c for c in data if "population" in c and c["population"] is not None], key=lambda x: -x["population"])
-    return data[:limit]
-
-# -------------------------
 # Fonction API Enedis
+
 def get_consommation(commune, annee="2022"):
     url = "https://data.enedis.fr/api/records/1.0/search/"
     params = {
@@ -44,23 +30,42 @@ def get_consommation(commune, annee="2022"):
         return None
 
 # -------------------------
+# Fonction API Geo pour récupérer coordonnées GPS d'une commune
+
+def get_coords(commune_name):
+    url = f"https://geo.api.gouv.fr/communes?nom={commune_name}&fields=centre&format=json"
+    try:
+        r = requests.get(url)
+        items = r.json()
+        if items:
+            return items[0]["centre"]["coordinates"][1], items[0]["centre"]["coordinates"][0]
+    except:
+        pass
+    return None, None
+
+# -------------------------
 # Slider de pondération
 poids = st.slider("🏠 Pondération de la variable consommation (entre 0 et 1)", 0.0, 1.0, 1.0, step=0.1)
 
 # -------------------------
-# Chargement des 20 communes les plus peuplées
-communes_data = get_communes_france(20)
+# Liste manuelle de communes avec noms compatibles Enedis
+communes_data = [{"nom": n} for n in [
+    "Nantes", "Strasbourg", "Angers", "Dijon", "Grenoble",
+    "Brest", "Le Mans", "Reims", "Tours", "Caen"
+]]
+
 data = []
 
 with st.spinner("🚀 Récupération des données Enedis en cours..."):
     for c in communes_data:
         conso = get_consommation(c["nom"])
-        if conso is not None:
+        lat, lon = get_coords(c["nom"])
+        if conso is not None and lat is not None:
             data.append({
                 "Commune": c["nom"],
                 "Conso_MWh": conso,
-                "Lat": c["centre"]["coordinates"][1],
-                "Lon": c["centre"]["coordinates"][0]
+                "Lat": lat,
+                "Lon": lon
             })
 
 df = pd.DataFrame(data)
