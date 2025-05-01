@@ -25,7 +25,7 @@ def get_communes_france(limit=500):
 # -------------------------
 # Fonction API Enedis
 def get_consommation(commune, annee="2022"):
-    url = "https://data.enedis.fr/api/records/1.0/search/"
+    url = "/api/explore/v2.1/catalog/datasets/consommation-electrique-par-secteur-dactivite-commune/records?limit=20"
     params = {
         "dataset": "consommation-electrique-par-secteur-dactivite-commune",
         "refine.nom_commune": commune,
