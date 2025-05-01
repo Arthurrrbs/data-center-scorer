@@ -8,7 +8,7 @@ st.set_page_config(layout="wide")
 st.title("📍 Carte API Enedis – Consommation électrique par commune (2023)")
 
 @st.cache_data
-def get_top_communes(n=10):
+def get_top_communes(n=100):
     url = "https://geo.api.gouv.fr/communes?fields=nom,code,centre,population&format=json&geometry=centre"
     response = requests.get(url)
     communes_data = {}
