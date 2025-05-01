@@ -4,54 +4,59 @@ import folium
 import requests
 from streamlit_folium import folium_static
 
-# --- Titre principal ---
-st.title("Scoring des Départements pour Data Centers en France")
+st.title("Scoring Multi-Variable des Départements pour Data Centers")
 
-# --- Bouton pour recharger ---
-if st.button('🔄 Recharger la Carte'):
+# --- Recharger la carte ---
+if st.button("🔄 Recharger la carte"):
     st.rerun()
 
-# --- Charger les données CSV ---
+# --- Charger les données ---
 @st.cache_data
 def load_data():
-    pib = pd.read_csv('pib_departements.csv')
-    elec = pd.read_csv('prix_electricite_departements.csv')
-    df = pd.merge(pib, elec, on="Département")
+    df = pd.read_csv("score_variables_departements.csv")
     return df
 
 df = load_data()
 
-st.write("Données fusionnées :", df.head())
+# --- Normaliser les variables (min-max) ---
+variables = [
+    "PIB_milliards", "Prix_Electricité", "Couverture_Fibre_%",
+    "Densite_pop_hab_km2", "Surface_disponible_km2", "Nb_entreprises",
+    "Nb_DataCenters_existants", "Taux_urbanisation_%",
+    "Acces_Eau_industrielle", "Indice_canicule"
+]
 
-# --- Normalisation ---
-df["PIB_norm"] = (df["PIB_milliards"] - df["PIB_milliards"].min()) / (df["PIB_milliards"].max() - df["PIB_milliards"].min())
-df["Electricite_norm"] = (df["Prix_Electricité"].max() - df["Prix_Electricité"]) / (df["Prix_Electricité"].max() - df["Prix_Electricité"].min())
+for var in variables:
+    if var in ["Prix_Electricité", "Indice_canicule"]:  # moins = mieux
+        df[f"{var}_norm"] = (df[var].max() - df[var]) / (df[var].max() - df[var].min())
+    else:  # plus = mieux
+        df[f"{var}_norm"] = (df[var] - df[var].min()) / (df[var].max() - df[var].min())
 
-# --- Score composite (50/50) ---
-df["Score"] = 0.5 * df["PIB_norm"] + 0.5 * df["Electricite_norm"]
+# --- Score global (moyenne des 10 normalisées) ---
+df["Score_Global"] = df[[f"{v}_norm" for v in variables]].mean(axis=1)
 
-st.subheader("Scores par Département")
-st.dataframe(df[["Département", "Score"]])
+st.subheader("Scores multi-variables par département")
+st.dataframe(df[["Département", "Score_Global"] + [f"{v}_norm" for v in variables]])
 
 # --- Carte GeoJSON des départements ---
-geojson_url = 'https://france-geojson.gregoiredavid.fr/repo/departements.geojson'
+geojson_url = "https://france-geojson.gregoiredavid.fr/repo/departements.geojson"
 geojson_data = requests.get(geojson_url).json()
 
-# --- Créer carte Folium ---
+# --- Carte Folium ---
 m = folium.Map(location=[46.5, 2.5], zoom_start=6)
 
-# --- Ajouter Choropleth ---
+# --- Choropleth ---
 folium.Choropleth(
     geo_data=geojson_data,
-    name='choropleth',
+    name="choropleth",
     data=df,
-    columns=['Département', 'Score'],
-    key_on='feature.properties.nom',
-    fill_color='YlGnBu',
+    columns=["Département", "Score_Global"],
+    key_on="feature.properties.nom",
+    fill_color="YlGnBu",
     fill_opacity=0.7,
     line_opacity=0.2,
-    legend_name='Score d\'Attractivité'
+    legend_name="Score d'Attractivité Global"
 ).add_to(m)
 
-# --- Afficher la carte ---
+# --- Affichage Streamlit ---
 folium_static(m)
