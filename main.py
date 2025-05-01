@@ -8,21 +8,22 @@ st.set_page_config(layout="wide")
 st.title("🏙️ Scoring Communal via API Enedis – Consommation électrique")
 
 # -------------------------
-# Fonction API Enedis
+# Fonction API Enedis avec recherche floue et filtrage local
 
 def get_consommation(commune, annee="2022"):
     url = "https://data.enedis.fr/api/records/1.0/search/"
     params = {
         "dataset": "consommation-electrique-par-secteur-dactivite-commune",
-        "refine.nom_commune": commune,
+        "q": commune,
         "refine.annee": annee,
-        "rows": 1
+        "rows": 20
     }
     try:
         response = requests.get(url, params=params)
         records = response.json().get("records", [])
-        if records:
-            return records[0]["fields"].get("consommation_mwh", None)
+        for record in records:
+            if record["fields"].get("nom_commune", "").lower() == commune.lower():
+                return record["fields"].get("consommation_mwh", None)
         return None
     except Exception as e:
         print(f"[Erreur API Enedis pour {commune}] {e}")
