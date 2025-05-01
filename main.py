@@ -3,6 +3,7 @@ import pandas as pd
 import folium
 import requests
 from streamlit_folium import folium_static
+import unicodedata
 
 st.title("Scoring Multi-Variable des Départements pour Data Centers")
 
@@ -17,6 +18,11 @@ def load_data():
     return df
 
 df = load_data()
+
+# --- Nettoyer les noms de département pour matcher le GeoJSON ---
+df["Département"] = df["Département"].apply(
+    lambda x: unicodedata.normalize('NFKD', x).encode('ascii', errors='ignore').decode('utf-8')
+)
 
 # --- Afficher les colonnes pour vérification ---
 st.write("📌 Colonnes détectées :", df.columns.tolist())
@@ -49,14 +55,20 @@ df["Score_Global"] = df[[f"{v}_norm" for v in variables]].mean(axis=1)
 st.subheader("📊 Scores multi-variables par département")
 st.dataframe(df[["Département", "Score_Global"] + [f"{v}_norm" for v in variables]])
 
-# --- Charger le fond de carte GeoJSON des départements ---
+# --- Charger GeoJSON des départements ---
 geojson_url = "https://france-geojson.gregoiredavid.fr/repo/departements.geojson"
 geojson_data = requests.get(geojson_url).json()
 
-# --- Créer la carte Folium ---
+# --- Debug : affichage des noms pour comparaison ---
+geojson_depts = [feature['properties']['nom'] for feature in geojson_data['features']]
+csv_depts = df["Département"].unique().tolist()
+st.write("🗺️ Noms dans GeoJSON :", geojson_depts)
+st.write("📊 Noms dans CSV (après nettoyage) :", csv_depts)
+
+# --- Carte Folium ---
 m = folium.Map(location=[46.5, 2.5], zoom_start=6)
 
-# --- Ajouter le scoring sur la carte ---
+# --- Choropleth avec correspondance sur les noms nettoyés ---
 folium.Choropleth(
     geo_data=geojson_data,
     name="choropleth",
