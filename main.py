@@ -86,7 +86,12 @@ df["Score_Global"] = sum(
 )
 
 # --- Carte Folium ---
-m = folium.Map(location=[46.5, 2.5], zoom_start=6)
+m = folium.Map(
+    location=[46.5, 2.5],
+    zoom_start=6,
+    tiles="https://{s}.tile.jawg.io/jawg-streets/{z}/{x}/{y}.png?access-token=a2M0eqrxFjzsE65ulr9u79m0wK99KM0SNI7qtzuJD4rUV55RwBF35BYbcfWE98xo",
+    attr='Jawg Maps'
+)
 
 folium.Choropleth(
     geo_data=geojson_data,
