@@ -19,6 +19,14 @@ def load_data():
 
 df = load_data()
 
+st.write(f"✅ Nombre de lignes dans le CSV : {len(df)}")
+
+geojson_depts = [feature['properties']['nom'] for feature in geojson_data['features']]
+csv_depts = df["Département"].unique().tolist()
+
+missing_in_csv = sorted(set(geojson_depts) - set(csv_depts))
+st.warning(f"🛑 Départements présents dans le GeoJSON mais absents du CSV : {missing_in_csv}")
+
 # --- Afficher les colonnes pour vérification ---
 st.write("📌 Colonnes détectées :", df.columns.tolist())
 st.write("🔍 Aperçu du fichier :", df.head())
@@ -36,6 +44,10 @@ missing_vars = [v for v in variables if v not in df.columns]
 if missing_vars:
     st.error(f"🚨 Colonnes manquantes dans le CSV : {missing_vars}")
     st.stop()
+
+df = df.dropna(subset=["Département"])  # supprime les lignes vides
+df = df.drop_duplicates(subset=["Département"])  # garde un seul département par nom
+
 
 # --- Normalisation des variables ---
 for var in variables:
