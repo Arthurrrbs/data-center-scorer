@@ -3,33 +3,37 @@ import pandas as pd
 import folium
 import requests
 from streamlit_folium import folium_static
-import unicodedata
 
-st.title("Scoring Multi-Variable des Départements pour Data Centers")
+st.set_page_config(layout="wide")
+st.title("📍 Scoring Multi-Variable des Départements pour Data Centers")
 
 # --- Bouton de rechargement ---
 if st.button("🔄 Recharger la carte"):
     st.rerun()
 
-# --- Charger les données avec le bon séparateur ---
+# --- Chargement des données CSV ---
 @st.cache_data
 def load_data():
     df = pd.read_csv("score_variables_departements_101.csv", sep=",")
+    df = df.dropna(subset=["Département"])
+    df = df.drop_duplicates(subset=["Département"])
     return df
 
 df = load_data()
 
-st.write(f"✅ Nombre de lignes dans le CSV : {len(df)}")
+# --- Chargement des données GeoJSON ---
+geojson_url = "https://france-geojson.gregoiredavid.fr/repo/departements.geojson"
+geojson_data = requests.get(geojson_url).json()
 
+# --- Vérification du nombre de lignes et correspondance des noms ---
 geojson_depts = [feature['properties']['nom'] for feature in geojson_data['features']]
 csv_depts = df["Département"].unique().tolist()
 
-missing_in_csv = sorted(set(geojson_depts) - set(csv_depts))
-st.warning(f"🛑 Départements présents dans le GeoJSON mais absents du CSV : {missing_in_csv}")
+st.write(f"🧾 Nombre de lignes dans le CSV : {len(df)}")
 
-# --- Afficher les colonnes pour vérification ---
-st.write("📌 Colonnes détectées :", df.columns.tolist())
-st.write("🔍 Aperçu du fichier :", df.head())
+missing = sorted(set(geojson_depts) - set(csv_depts))
+if missing:
+    st.warning(f"❌ Départements présents dans le GeoJSON mais absents du CSV : {missing}")
 
 # --- Liste des variables à normaliser ---
 variables = [
@@ -40,14 +44,10 @@ variables = [
 ]
 
 # --- Vérification des colonnes présentes ---
-missing_vars = [v for v in variables if v not in df.columns]
-if missing_vars:
-    st.error(f"🚨 Colonnes manquantes dans le CSV : {missing_vars}")
+missing_cols = [v for v in variables if v not in df.columns]
+if missing_cols:
+    st.error(f"🚨 Colonnes manquantes dans le CSV : {missing_cols}")
     st.stop()
-
-df = df.dropna(subset=["Département"])  # supprime les lignes vides
-df = df.drop_duplicates(subset=["Département"])  # garde un seul département par nom
-
 
 # --- Normalisation des variables ---
 for var in variables:
@@ -56,26 +56,17 @@ for var in variables:
     else:  # Plus = mieux
         df[f"{var}_norm"] = (df[var] - df[var].min()) / (df[var].max() - df[var].min())
 
-# --- Calcul du score global (moyenne des scores normalisés) ---
+# --- Score global (moyenne des variables normalisées) ---
 df["Score_Global"] = df[[f"{v}_norm" for v in variables]].mean(axis=1)
 
+# --- Affichage de la table
 st.subheader("📊 Scores multi-variables par département")
 st.dataframe(df[["Département", "Score_Global"] + [f"{v}_norm" for v in variables]])
-
-# --- Charger GeoJSON des départements ---
-geojson_url = "https://france-geojson.gregoiredavid.fr/repo/departements.geojson"
-geojson_data = requests.get(geojson_url).json()
-
-# --- Debug : affichage des noms pour comparaison ---
-geojson_depts = [feature['properties']['nom'] for feature in geojson_data['features']]
-csv_depts = df["Département"].unique().tolist()
-st.write("🗺️ Noms dans GeoJSON :", geojson_depts)
-st.write("📊 Noms dans CSV (après nettoyage) :", csv_depts)
 
 # --- Carte Folium ---
 m = folium.Map(location=[46.5, 2.5], zoom_start=6)
 
-# --- Choropleth avec correspondance sur les noms nettoyés ---
+# --- Choropleth
 folium.Choropleth(
     geo_data=geojson_data,
     name="choropleth",
@@ -88,5 +79,30 @@ folium.Choropleth(
     legend_name="Score d'Attractivité Global"
 ).add_to(m)
 
-# --- Afficher la carte dans Streamlit ---
+# --- Ajouter les scores dans les propriétés du GeoJSON
+for feature in geojson_data['features']:
+    dept_name = feature["properties"]["nom"]
+    row = df[df["Département"] == dept_name]
+    if not row.empty:
+        feature["properties"]["Score_Global"] = round(row.iloc[0]["Score_Global"], 2)
+    else:
+        feature["properties"]["Score_Global"] = "N/A"
+
+# --- Tooltip interactif au survol
+folium.GeoJson(
+    geojson_data,
+    style_function=lambda feature: {
+        'fillColor': 'transparent',
+        'color': 'transparent',
+        'weight': 0
+    },
+    tooltip=folium.GeoJsonTooltip(
+        fields=["nom", "Score_Global"],
+        aliases=["Département :", "Score :"],
+        sticky=True,
+        labels=True
+    )
+).add_to(m)
+
+# --- Affichage Streamlit
 folium_static(m)
