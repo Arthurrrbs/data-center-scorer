@@ -86,7 +86,7 @@ df["Score_Global"] = sum(
 )
 
 # --- Carte Folium ---
-m = folium.Map(location=[46.5, 2.5], zoom_start=6, tiles="OpenStreetMap")
+m = folium.Map(location=[46.5, 2.5], zoom_start=6, tiles="CartoDB positron")
 
 folium.Choropleth(
     geo_data=geojson_data,
