@@ -127,32 +127,37 @@ folium.GeoJson(
 
 # --- Affichage final dans Streamlit
 folium_static(m)
+# --- Récupération du top 5 et flop 5
+top5 = df[["Département", "Score_Global"]].sort_values(by="Score_Global", ascending=False).head(5).reset_index(drop=True)
+worst5 = df[["Département", "Score_Global"]].sort_values(by="Score_Global", ascending=True).head(5).reset_index(drop=True)
 
-# --- Récupération des meilleurs et pires départements
-top5 = df[["Département", "Score_Global"]].sort_values(by="Score_Global", ascending=False).head(5)
-worst5 = df[["Département", "Score_Global"]].sort_values(by="Score_Global", ascending=True).head(5)
+# --- Affichage en colonnes côte à côte
+col1, col2 = st.columns(2)
 
-def render_card_list(df_slice, title, color):
-    st.markdown(f"### {title}")
-    for i, row in df_slice.iterrows():
+with col1:
+    st.markdown("### 🏆 Top 5 des départements les mieux notés")
+    for i, row in top5.iterrows():
         st.markdown(
             f"""
-            <div style='
-                background-color:{color};
-                padding:15px;
-                margin:10px 0;
-                border-radius:10px;
-                color:white;
-                font-weight:bold;
-                font-size:16px;
-            '>
-                {row['Département']} — Score : {row['Score_Global']:.2f}
+            <div style='margin-bottom: 8px; font-size:16px'>
+                <span style="font-weight:600; color:#2E8B57">{i+1}.</span>
+                <span style="font-weight:500;">{row['Département']}</span>
+                — <span style="color: #555;">{row['Score_Global']:.2f}</span>
             </div>
             """,
             unsafe_allow_html=True
         )
 
-# --- Affichage stylé
-render_card_list(top5, "🏆 Top 5 des départements les mieux notés", "#2E8B57")   # vert
-render_card_list(worst5, "⚠️ Top 5 des départements les moins bien notés", "#B22222")  # rouge
-
+with col2:
+    st.markdown("### ⚠️ Top 5 des départements les moins bien notés")
+    for i, row in worst5.iterrows():
+        st.markdown(
+            f"""
+            <div style='margin-bottom: 8px; font-size:16px'>
+                <span style="font-weight:600; color:#B22222">{i+1}.</span>
+                <span style="font-weight:500;">{row['Département']}</span>
+                — <span style="color: #555;">{row['Score_Global']:.2f}</span>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
