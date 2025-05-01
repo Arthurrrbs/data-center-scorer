@@ -5,7 +5,7 @@ import requests
 from streamlit_folium import folium_static
 
 st.set_page_config(layout="wide")
-st.title("📍 Scoring Multi-Variable des Départements pour Data Centers")
+st.title("Quel département pour mes Data Centers?")
 
 # --- État initial : réinitialisation sliders ---
 if "reset_weights" not in st.session_state:
