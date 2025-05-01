@@ -8,18 +8,12 @@ st.set_page_config(layout="wide")
 st.title("📍 Carte API Enedis – Consommation électrique par commune (2023)")
 
 communes = {
-    "Paris": {"code": "75056", "lat": 48.8566, "lon": 2.3522},
-    "Marseille": {"code": "13055", "lat": 43.2965, "lon": 5.3698},
-    "Lyon": {"code": "69385", "lat": 45.75, "lon": 4.85},
-    "Toulouse": {"code": "31555", "lat": 43.6045, "lon": 1.4442},
-    "Nice": {"code": "06088", "lat": 43.7102, "lon": 7.2620},
-    "Montpellier": {"code": "34172", "lat": 43.6111, "lon": 3.8777},
-    "Nantes": {"code": "44109", "lat": 47.2184, "lon": -1.5536},
-    "Strasbourg": {"code": "67482", "lat": 48.5734, "lon": 7.7521},
+    "Saint-Pair-sur-Mer": {"code": "50532", "lat": 48.8026, "lon": -1.5471},
     "Le Parc": {"code": "50535", "lat": 48.7544, "lon": -1.2952},
-    "Saint-Pair-sur-Mer": {"code": "50532", "lat": 48.8026, "lon": -1.5471}
+    "Montpellier": {"code": "34172", "lat": 43.6111, "lon": 3.8777},
+    "Lyon": {"code": "69385", "lat": 45.75, "lon": 4.85},
+    "Marseille": {"code": "13055", "lat": 43.2965, "lon": 5.3698}
 }
-
 
 annee = "2023"
 data = []
