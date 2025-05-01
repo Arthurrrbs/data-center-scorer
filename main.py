@@ -10,10 +10,10 @@ st.title("Scoring Multi-Variable des Départements pour Data Centers")
 if st.button("🔄 Recharger la carte"):
     st.rerun()
 
-# --- Charger les données (format CSV standard avec virgules) ---
+# --- Charger les données avec le bon séparateur ---
 @st.cache_data
 def load_data():
-    df = pd.read_csv("score_variables_departements.csv")
+    df = pd.read_csv("score_variables_departements.csv", sep=",")
     return df
 
 df = load_data()
@@ -22,7 +22,7 @@ df = load_data()
 st.write("📌 Colonnes détectées :", df.columns.tolist())
 st.write("🔍 Aperçu du fichier :", df.head())
 
-# --- Variables à normaliser ---
+# --- Liste des variables à normaliser ---
 variables = [
     "PIB_milliards", "Prix_Electricité", "Couverture_Fibre_%",
     "Densite_pop_hab_km2", "Surface_disponible_km2", "Nb_entreprises",
@@ -30,33 +30,33 @@ variables = [
     "Acces_Eau_industrielle", "Indice_canicule"
 ]
 
-# --- Vérification des colonnes existantes ---
+# --- Vérification des colonnes présentes ---
 missing_vars = [v for v in variables if v not in df.columns]
 if missing_vars:
     st.error(f"🚨 Colonnes manquantes dans le CSV : {missing_vars}")
     st.stop()
 
-# --- Normalisation ---
+# --- Normalisation des variables ---
 for var in variables:
     if var in ["Prix_Electricité", "Indice_canicule"]:  # Moins = mieux
         df[f"{var}_norm"] = (df[var].max() - df[var]) / (df[var].max() - df[var].min())
     else:  # Plus = mieux
         df[f"{var}_norm"] = (df[var] - df[var].min()) / (df[var].max() - df[var].min())
 
-# --- Score global comme moyenne des scores normalisés ---
+# --- Calcul du score global (moyenne des scores normalisés) ---
 df["Score_Global"] = df[[f"{v}_norm" for v in variables]].mean(axis=1)
 
 st.subheader("📊 Scores multi-variables par département")
 st.dataframe(df[["Département", "Score_Global"] + [f"{v}_norm" for v in variables]])
 
-# --- Chargement du fond de carte GeoJSON des départements ---
+# --- Charger le fond de carte GeoJSON des départements ---
 geojson_url = "https://france-geojson.gregoiredavid.fr/repo/departements.geojson"
 geojson_data = requests.get(geojson_url).json()
 
-# --- Création de la carte Folium ---
+# --- Créer la carte Folium ---
 m = folium.Map(location=[46.5, 2.5], zoom_start=6)
 
-# --- Ajout du choropleth ---
+# --- Ajouter le scoring sur la carte ---
 folium.Choropleth(
     geo_data=geojson_data,
     name="choropleth",
@@ -69,5 +69,5 @@ folium.Choropleth(
     legend_name="Score d'Attractivité Global"
 ).add_to(m)
 
-# --- Affichage dans Streamlit ---
+# --- Afficher la carte dans Streamlit ---
 folium_static(m)
