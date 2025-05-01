@@ -5,7 +5,7 @@ import requests
 from streamlit_folium import folium_static
 
 st.set_page_config(layout="wide")
-st.title("Quel département pour mes Data Centers?")
+st.title("Quel département pour mes Data Centers ?")
 
 # --- État initial : réinitialisation sliders ---
 if "reset_weights" not in st.session_state:
@@ -53,7 +53,7 @@ if missing_cols:
     st.stop()
 
 # --- Sidebar : sliders de pondération + bouton reset ---
-st.sidebar.title("⚖️ Pondération des variables")
+st.sidebar.title("Pondération des variables")
 
 # Bouton reset
 if st.sidebar.button("🔁 Réinitialiser les pondérations"):
