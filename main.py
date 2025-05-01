@@ -128,13 +128,31 @@ folium.GeoJson(
 # --- Affichage final dans Streamlit
 folium_static(m)
 
-# --- Top 5 des départements les mieux notés
+# --- Récupération des meilleurs et pires départements
 top5 = df[["Département", "Score_Global"]].sort_values(by="Score_Global", ascending=False).head(5)
 worst5 = df[["Département", "Score_Global"]].sort_values(by="Score_Global", ascending=True).head(5)
 
-st.subheader("🏆 Top 5 des départements les mieux notés")
-st.table(top5.reset_index(drop=True).style.format({"Score_Global": "{:.2f}"}))
+def render_card_list(df_slice, title, color):
+    st.markdown(f"### {title}")
+    for i, row in df_slice.iterrows():
+        st.markdown(
+            f"""
+            <div style='
+                background-color:{color};
+                padding:15px;
+                margin:10px 0;
+                border-radius:10px;
+                color:white;
+                font-weight:bold;
+                font-size:16px;
+            '>
+                {row['Département']} — Score : {row['Score_Global']:.2f}
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
 
-st.subheader("⚠️ Top 5 des départements les moins bien notés")
-st.table(worst5.reset_index(drop=True).style.format({"Score_Global": "{:.2f}"}))
+# --- Affichage stylé
+render_card_list(top5, "🏆 Top 5 des départements les mieux notés", "#2E8B57")   # vert
+render_card_list(worst5, "⚠️ Top 5 des départements les moins bien notés", "#B22222")  # rouge
 
