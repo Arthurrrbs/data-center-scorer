@@ -3,18 +3,15 @@ import requests
 import pandas as pd
 
 st.set_page_config(layout="wide")
-st.title("🔌 Test API Enedis – 2 communes")
+st.title("🔌 Test API Enedis – Commune de Montpellier")
 
-# Liste réduite à 2 communes
-communes = [
-    "Montpellier",
-    "Dijon"
-]
+# Une seule commune à tester
+communes = ["Montpellier"]
 
 annee = "2022"
 data = []
 
-with st.spinner("🔍 Récupération des données Enedis pour 2 communes..."):
+with st.spinner("🔍 Récupération des données Enedis pour Montpellier..."):
     for nom in communes:
         url = "https://data.enedis.fr/api/records/1.0/search/"
         params = {
@@ -42,7 +39,7 @@ with st.spinner("🔍 Récupération des données Enedis pour 2 communes..."):
 
 if data:
     df = pd.DataFrame(data)
-    st.success("✅ Données récupérées pour les communes suivantes :")
+    st.success("✅ Données récupérées pour la commune :")
     st.dataframe(df)
 else:
-    st.warning("⚠️ Aucune donnée récupérée pour les communes testées.")
+    st.warning("⚠️ Aucune donnée récupérée pour Montpellier.")
