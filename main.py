@@ -3,7 +3,7 @@ import requests
 import pandas as pd
 
 st.set_page_config(layout="wide")
-st.title("🔌 Test API Enedis – Agrégation par codes INSEE (2023)")
+st.title("🔌 Test API Enedis – Agrégation multi-communes par filtrage local (2023)")
 
 communes = {
     "Saint-Pair-sur-Mer": "50532",
@@ -20,8 +20,7 @@ def get_commune_data(code_insee, commune_name, annee):
     url = "https://data.enedis.fr/api/records/1.0/search/"
     params = {
         "dataset": "consommation-electrique-par-secteur-dactivite-commune",
-        "refine.annee": annee,
-        "refine.code_insee_commune": code_insee,
+        "q": commune_name,
         "rows": 100
     }
     response = requests.get(url, params=params)
@@ -30,13 +29,14 @@ def get_commune_data(code_insee, commune_name, annee):
         total_conso = 0
         for rec in records:
             fields = rec.get("fields", {})
-            conso = fields.get("conso_totale_mwh", 0)
-            if conso:
-                total_conso += conso
+            if str(fields.get("code_commune")) == code_insee and str(fields.get("annee")) == annee:
+                conso = fields.get("conso_totale_mwh", 0)
+                if conso:
+                    total_conso += conso
         return total_conso
     return None
 
-with st.spinner("🔍 Agrégation des données Enedis pour plusieurs communes (par code INSEE)..."):
+with st.spinner("🔍 Agrégation des données Enedis pour plusieurs communes (filtrage local)..."):
     for name, code in communes.items():
         total = get_commune_data(code, name, annee)
         if total:
