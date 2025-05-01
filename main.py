@@ -3,14 +3,14 @@ import requests
 import pandas as pd
 
 st.set_page_config(layout="wide")
-st.title("🔌 Test API Enedis – Commune de Montpelliercccc (via code INSEE)")
+st.title("🔌 Test API Enedis – Commune de Montpellier (via code INSEE)")
 
 # Code INSEE de Montpellier
 code_insee = "34172"
 annee = "2022"
 data = []
 
-with st.spinner("🔍 Récupération des données Enedis pour Mocccntpellier (tous secteurs)..."):
+with st.spinner("🔍 Récupération des données Enedis pour Montpellier (tous secteurs)..."):
     url = "https://data.enedis.fr/api/records/1.0/search/"
     params = {
         "dataset": "consommation-electrique-par-secteur-dactivite-commune",
