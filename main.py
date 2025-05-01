@@ -7,13 +7,26 @@ from streamlit_folium import folium_static
 st.set_page_config(layout="wide")
 st.title("📍 Carte API Enedis – Consommation électrique par commune (2023)")
 
-communes = {
-    "Saint-Pair-sur-Mer": {"code": "50532", "lat": 48.8026, "lon": -1.5471},
-    "Le Parc": {"code": "50535", "lat": 48.7544, "lon": -1.2952},
-    "Montpellier": {"code": "34172", "lat": 43.6111, "lon": 3.8777},
-    "Lyon": {"code": "69385", "lat": 45.75, "lon": 4.85},
-    "Marseille": {"code": "13055", "lat": 43.2965, "lon": 5.3698}
-}
+@st.cache_data
+def get_top_communes(n=10):
+    url = "https://geo.api.gouv.fr/communes?fields=nom,code,centre,population&format=json&geometry=centre"
+    response = requests.get(url)
+    communes_data = {}
+    if response.status_code == 200:
+        all_communes = response.json()
+        sorted_communes = sorted(
+            [c for c in all_communes if "centre" in c and c.get("population")],
+            key=lambda x: x["population"], reverse=True
+        )[:n]
+        for c in sorted_communes:
+            name = c["nom"]
+            code = c["code"]
+            lon, lat = c["centre"]["coordinates"]
+            communes_data[name] = {"code": code, "lat": lat, "lon": lon}
+    return communes_data
+
+# Chargement dynamique des 10 plus grandes communes
+communes = get_top_communes(10)
 
 annee = "2023"
 data = []
