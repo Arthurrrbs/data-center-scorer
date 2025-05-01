@@ -1,168 +1,103 @@
 import streamlit as st
+import requests
 import pandas as pd
 import folium
-import requests
 from streamlit_folium import folium_static
 
 st.set_page_config(layout="wide")
-st.title("Scoring des départements pour l'implantation de Data Centers")
+st.title("🏙️ Scoring Communal via API Enedis – Consommation électrique")
 
-# --- État initial : réinitialisation sliders ---
-if "reset_weights" not in st.session_state:
-    st.session_state.reset_weights = False
+# -------------------------
+# Fonction API Geo pour communes
+def get_communes_france(limit=500):
+    url = "https://geo.api.gouv.fr/communes"
+    params = {
+        "fields": "nom,population,centre",
+        "format": "json",
+        "geometry": "centre"
+    }
+    response = requests.get(url, params=params)
+    data = response.json()
+    # Trier par population descendante et garder les n plus grandes
+    data = sorted([c for c in data if "population" in c and c["population"] is not None], key=lambda x: -x["population"])
+    return data[:limit]
 
-# --- Bouton de rechargement ---
-if st.button("🔄 Recharger la carte"):
-    st.rerun()
+# -------------------------
+# Fonction API Enedis
+def get_consommation(commune, annee="2022"):
+    url = "https://data.enedis.fr/api/records/1.0/search/"
+    params = {
+        "dataset": "consommation-electrique-par-secteur-dactivite-commune",
+        "refine.nom_commune": commune,
+        "refine.annee": annee,
+        "refine.secteur_d_activite": "Résidentiel",
+        "rows": 1
+    }
+    try:
+        response = requests.get(url, params=params)
+        records = response.json().get("records", [])
+        if records:
+            return records[0]["fields"].get("consommation_mwh", None)
+        return None
+    except:
+        return None
 
-# --- Chargement CSV ---
-@st.cache_data
-def load_data():
-    df = pd.read_csv("score_variables_departements_101.csv", sep=",")
-    df = df.dropna(subset=["Département"])
-    df = df[~df["Département"].str.strip().eq("")]
-    df = df.drop_duplicates(subset=["Département"])
-    df["Département"] = df["Département"].str.strip()
-    return df
+# -------------------------
+# Slider de pondération
+poids = st.slider("🏠 Pondération de la variable consommation (entre 0 et 1)", 0.0, 1.0, 1.0, step=0.1)
 
-df = load_data()
+# -------------------------
+# Chargement des 500 communes les plus peuplées
+communes_data = get_communes_france(500)
+data = []
 
-# --- Chargement GeoJSON ---
-geojson_url = "https://france-geojson.gregoiredavid.fr/repo/departements.geojson"
-geojson_data = requests.get(geojson_url).json()
+with st.spinner("🚀 Récupération des données Enedis en cours..."):
+    for c in communes_data:
+        conso = get_consommation(c["nom"])
+        if conso is not None:
+            data.append({
+                "Commune": c["nom"],
+                "Conso_MWh": conso,
+                "Lat": c["centre"]["coordinates"][1],
+                "Lon": c["centre"]["coordinates"][0]
+            })
 
-# --- Vérification noms GeoJSON vs CSV ---
-geojson_depts = [f['properties']['nom'].strip() for f in geojson_data['features']]
-csv_depts = df["Département"].unique().tolist()
-missing = sorted(set(geojson_depts) - set(csv_depts))
-if missing:
-    st.warning(f"❌ Départements présents dans le GeoJSON mais absents du CSV : {missing}")
+df = pd.DataFrame(data)
 
-# --- Variables clés ---
-variables = [
-    "PIB_milliards", "Prix_Electricité", "Couverture_Fibre_%",
-    "Densite_pop_hab_km2", "Surface_disponible_km2", "Nb_entreprises",
-    "Nb_DataCenters_existants", "Taux_urbanisation_%",
-    "Acces_Eau_industrielle", "Indice_canicule"
-]
+if not df.empty:
+    # Normalisation
+    df["Conso_norm"] = (df["Conso_MWh"].max() - df["Conso_MWh"]) / (df["Conso_MWh"].max() - df["Conso_MWh"].min())
+    df["Score"] = poids * df["Conso_norm"]
 
-# --- Vérification colonnes présentes ---
-missing_cols = [v for v in variables if v not in df.columns]
-if missing_cols:
-    st.error(f"🚨 Colonnes manquantes : {missing_cols}")
-    st.stop()
+    # -------------------------
+    # Carte Folium
+    m = folium.Map(location=[46.6, 2.5], zoom_start=6)
 
-# --- Sidebar : sliders de pondération + bouton reset ---
-st.sidebar.title("Pondération des variables")
+    for _, row in df.iterrows():
+        folium.CircleMarker(
+            location=[row["Lat"], row["Lon"]],
+            radius=8,
+            color="blue",
+            fill=True,
+            fill_opacity=0.6,
+            popup=f"{row['Commune']}<br>Score: {row['Score']:.2f}"
+        ).add_to(m)
 
-# Bouton reset
-if st.sidebar.button("🔁 Réinitialiser les pondérations"):
-    st.session_state.reset_weights = True
+    # Affichage carte
+    folium_static(m)
+
+    # -------------------------
+    # Top 5 et Flop 5
+    st.markdown("---")
+    st.subheader("📊 Classement des communes")
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.markdown("### 🏆 Top 5")
+        st.dataframe(df.sort_values("Score", ascending=False)[["Commune", "Score"]].head(5), use_container_width=True)
+
+    with col2:
+        st.markdown("### 🍾 Flop 5")
+        st.dataframe(df.sort_values("Score")[["Commune", "Score"]].head(5), use_container_width=True)
 else:
-    st.session_state.reset_weights = False
-
-# Création sliders
-weights = {}
-for var in variables:
-    default = 10 if st.session_state.reset_weights else st.session_state.get(f"weight_{var}", 10)
-    weights[var] = st.sidebar.slider(var, 0, 100, default, key=f"weight_{var}")
-
-# Vérifier pondération totale
-total_weight = sum(weights.values())
-if total_weight == 0:
-    st.error("⚠️ La somme des pondérations est nulle. Merci d’augmenter au moins une variable.")
-    st.stop()
-
-# --- Normalisation des variables ---
-for var in variables:
-    if var in ["Prix_Electricité", "Indice_canicule"]:  # Moins = mieux
-        df[f"{var}_norm"] = (df[var].max() - df[var]) / (df[var].max() - df[var].min())
-    else:  # Plus = mieux
-        df[f"{var}_norm"] = (df[var] - df[var].min()) / (df[var].max() - df[var].min())
-
-# --- Score pondéré final ---
-df["Score_Global"] = sum(
-    (weights[v] / total_weight) * df[f"{v}_norm"] for v in variables
-)
-
-# --- Carte Folium ---
-m = folium.Map(
-    location=[46.5, 2.5],
-    zoom_start=6,
-    tiles="https://{s}.tile.jawg.io/jawg-streets/{z}/{x}/{y}.png?access-token=a2M0eqrxFjzsE65ulr9u79m0wK99KM0SNI7qtzuJD4rUV55RwBF35BYbcfWE98xo",
-    attr='Jawg Maps'
-)
-
-folium.Choropleth(
-    geo_data=geojson_data,
-    name="choropleth",
-    data=df,
-    columns=["Département", "Score_Global"],
-    key_on="feature.properties.nom",
-    fill_color="YlGnBu",
-    fill_opacity=0.7,
-    line_opacity=0.2,
-    legend_name="Score d'Attractivité Global"
-).add_to(m)
-
-# --- Ajouter les scores dans le GeoJSON pour le tooltip
-for feature in geojson_data['features']:
-    dept_name = feature["properties"]["nom"].strip()
-    row = df[df["Département"] == dept_name]
-    if not row.empty:
-        feature["properties"]["Score_Global"] = round(row.iloc[0]["Score_Global"], 2)
-    else:
-        feature["properties"]["Score_Global"] = "N/A"
-
-# --- Tooltip interactif
-folium.GeoJson(
-    geojson_data,
-    style_function=lambda feature: {
-        'fillColor': 'transparent',
-        'color': 'transparent',
-        'weight': 0
-    },
-    tooltip=folium.GeoJsonTooltip(
-        fields=["nom", "Score_Global"],
-        aliases=["Département :", "Score :"],
-        sticky=True,
-        labels=True
-    )
-).add_to(m)
-
-# --- Affichage final dans Streamlit
-folium_static(m)
-# --- Récupération du top 5 et flop 5
-top5 = df[["Département", "Score_Global"]].sort_values(by="Score_Global", ascending=False).head(5).reset_index(drop=True)
-worst5 = df[["Département", "Score_Global"]].sort_values(by="Score_Global", ascending=True).head(5).reset_index(drop=True)
-
-# --- Affichage en colonnes côte à côte
-col1, col2 = st.columns(2)
-
-with col1:
-    st.markdown("### 🏆 Top 5 des départements les mieux notés")
-    for i, row in top5.iterrows():
-        st.markdown(
-            f"""
-            <div style='margin-bottom: 8px; font-size:16px'>
-                <span style="font-weight:600; color:#2E8B57">{i+1}.</span>
-                <span style="font-weight:500;">{row['Département']}</span>
-                — <span style="color: #555;">{row['Score_Global']:.2f}</span>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-
-with col2:
-    st.markdown("### ⚠️ Top 5 des départements les moins bien notés")
-    for i, row in worst5.iterrows():
-        st.markdown(
-            f"""
-            <div style='margin-bottom: 8px; font-size:16px'>
-                <span style="font-weight:600; color:#B22222">{i+1}.</span>
-                <span style="font-weight:500;">{row['Département']}</span>
-                — <span style="color: #555;">{row['Score_Global']:.2f}</span>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
+    st.warning("Aucune commune n'a pu être scorée avec succès.")
