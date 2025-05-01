@@ -6,7 +6,7 @@ from streamlit_folium import folium_static
 
 st.title("Scoring Multi-Variable des Départements pour Data Centers")
 
-# --- Recharger la carte ---
+# --- Bouton de rechargement ---
 if st.button("🔄 Recharger la carte"):
     st.rerun()
 
@@ -18,7 +18,11 @@ def load_data():
 
 df = load_data()
 
-# --- Normaliser les variables (min-max) ---
+# --- Debug temporaire ---
+st.write("📌 Colonnes détectées :", df.columns.tolist())
+st.write("🔍 Aperçu du fichier :", df.head())
+
+# --- Liste des variables à normaliser ---
 variables = [
     "PIB_milliards", "Prix_Electricité", "Couverture_Fibre_%",
     "Densite_pop_hab_km2", "Surface_disponible_km2", "Nb_entreprises",
@@ -26,26 +30,27 @@ variables = [
     "Acces_Eau_industrielle", "Indice_canicule"
 ]
 
+# --- Normalisation ---
 for var in variables:
-    if var in ["Prix_Electricité", "Indice_canicule"]:  # moins = mieux
+    if var in ["Prix_Electricité", "Indice_canicule"]:  # Moins = mieux
         df[f"{var}_norm"] = (df[var].max() - df[var]) / (df[var].max() - df[var].min())
-    else:  # plus = mieux
+    else:  # Plus = mieux
         df[f"{var}_norm"] = (df[var] - df[var].min()) / (df[var].max() - df[var].min())
 
-# --- Score global (moyenne des 10 normalisées) ---
+# --- Calcul du score global (moyenne des normalisées) ---
 df["Score_Global"] = df[[f"{v}_norm" for v in variables]].mean(axis=1)
 
 st.subheader("Scores multi-variables par département")
 st.dataframe(df[["Département", "Score_Global"] + [f"{v}_norm" for v in variables]])
 
-# --- Carte GeoJSON des départements ---
+# --- Charger GeoJSON des départements ---
 geojson_url = "https://france-geojson.gregoiredavid.fr/repo/departements.geojson"
 geojson_data = requests.get(geojson_url).json()
 
-# --- Carte Folium ---
+# --- Créer carte Folium ---
 m = folium.Map(location=[46.5, 2.5], zoom_start=6)
 
-# --- Choropleth ---
+# --- Ajouter le choropleth ---
 folium.Choropleth(
     geo_data=geojson_data,
     name="choropleth",
@@ -58,5 +63,5 @@ folium.Choropleth(
     legend_name="Score d'Attractivité Global"
 ).add_to(m)
 
-# --- Affichage Streamlit ---
+# --- Affichage dans Streamlit ---
 folium_static(m)
