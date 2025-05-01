@@ -3,20 +3,18 @@ import requests
 import pandas as pd
 
 st.set_page_config(layout="wide")
-st.title("🔌 Test API Enedis – 20 plus grandes communes")
+st.title("🔌 Test API Enedis – 2 communes")
 
-# Liste des 20 plus grandes communes françaises avec noms compatibles Enedis
+# Liste réduite à 2 communes
 communes = [
-    "Paris", "Marseille", "Lyon", "Toulouse", "Nice",
-    "Nantes", "Montpellier", "Strasbourg", "Bordeaux", "Lille",
-    "Rennes", "Reims", "Le Havre", "Saint-Etienne", "Toulon",
-    "Grenoble", "Dijon", "Angers", "Nimes", "Villeurbanne"
+    "Montpellier",
+    "Dijon"
 ]
 
 annee = "2022"
 data = []
 
-with st.spinner("🔍 Récupération des données Enedis pour 20 communes..."):
+with st.spinner("🔍 Récupération des données Enedis pour 2 communes..."):
     for nom in communes:
         url = "https://data.enedis.fr/api/records/1.0/search/"
         params = {
@@ -47,4 +45,4 @@ if data:
     st.success("✅ Données récupérées pour les communes suivantes :")
     st.dataframe(df)
 else:
-    st.warning("⚠️ Aucune donnée récupérée pour les 20 communes.")
+    st.warning("⚠️ Aucune donnée récupérée pour les communes testées.")
