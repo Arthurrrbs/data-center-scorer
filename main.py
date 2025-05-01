@@ -3,23 +3,25 @@ import requests
 import pandas as pd
 
 st.set_page_config(layout="wide")
-st.title("🔌 Test API Enedis – Agrégation pour plusieurs communes (2023)")
+st.title("🔌 Test API Enedis – Agrégation par codes INSEE (2023)")
 
-communes = [
-    "Saint-Pair-sur-Mer",
-    "Le Parc",
-    "Montpellier",
-    "Lyon",
-    "Marseille"
-]
+communes = {
+    "Saint-Pair-sur-Mer": "50532",
+    "Le Parc": "50535",
+    "Montpellier": "34172",
+    "Lyon": "69385",
+    "Marseille": "13055"
+}
+
 annee = "2023"
 data = []
 
-def get_commune_data(commune, annee):
+def get_commune_data(code_insee, commune_name, annee):
     url = "https://data.enedis.fr/api/records/1.0/search/"
     params = {
         "dataset": "consommation-electrique-par-secteur-dactivite-commune",
-        "q": commune,
+        "refine.annee": annee,
+        "refine.code_insee_commune": code_insee,
         "rows": 100
     }
     response = requests.get(url, params=params)
@@ -28,18 +30,17 @@ def get_commune_data(commune, annee):
         total_conso = 0
         for rec in records:
             fields = rec.get("fields", {})
-            if fields.get("nom_commune", "").lower() == commune.lower() and str(fields.get("annee")) == annee:
-                conso = fields.get("conso_totale_mwh", 0)
-                if conso:
-                    total_conso += conso
+            conso = fields.get("conso_totale_mwh", 0)
+            if conso:
+                total_conso += conso
         return total_conso
     return None
 
-with st.spinner("🔍 Agrégation des données Enedis pour plusieurs communes..."):
-    for commune in communes:
-        total = get_commune_data(commune, annee)
+with st.spinner("🔍 Agrégation des données Enedis pour plusieurs communes (par code INSEE)..."):
+    for name, code in communes.items():
+        total = get_commune_data(code, name, annee)
         if total:
-            data.append({"Commune": commune, "Consommation_Totale_MWh": total})
+            data.append({"Commune": name, "Consommation_Totale_MWh": total})
 
 if data:
     df = pd.DataFrame(data)
