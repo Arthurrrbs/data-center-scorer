@@ -5,40 +5,24 @@ import pandas as pd
 st.set_page_config(layout="wide")
 st.title("🔌 Test API Enedis – 20 plus grandes communes")
 
-# Liste des 20 plus grandes communes françaises avec leur code INSEE
-communes_insee = {
-    "Paris": "75056",
-    "Marseille": "13055",
-    "Lyon": "69385",
-    "Toulouse": "31555",
-    "Nice": "06088",
-    "Nantes": "44109",
-    "Montpellier": "34172",
-    "Strasbourg": "67482",
-    "Bordeaux": "33063",
-    "Lille": "59350",
-    "Rennes": "35238",
-    "Reims": "51454",
-    "Le Havre": "76351",
-    "Saint-Étienne": "42218",
-    "Toulon": "83137",
-    "Grenoble": "38185",
-    "Dijon": "21231",
-    "Angers": "49007",
-    "Nîmes": "30189",
-    "Villeurbanne": "69266"
-}
+# Liste des 20 plus grandes communes françaises avec noms compatibles Enedis
+communes = [
+    "Paris", "Marseille", "Lyon", "Toulouse", "Nice",
+    "Nantes", "Montpellier", "Strasbourg", "Bordeaux", "Lille",
+    "Rennes", "Reims", "Le Havre", "Saint-Etienne", "Toulon",
+    "Grenoble", "Dijon", "Angers", "Nimes", "Villeurbanne"
+]
 
 annee = "2022"
 data = []
 
 with st.spinner("🔍 Récupération des données Enedis pour 20 communes..."):
-    for nom, insee in communes_insee.items():
+    for nom in communes:
         url = "https://data.enedis.fr/api/records/1.0/search/"
         params = {
             "dataset": "consommation-electrique-par-secteur-dactivite-commune",
             "refine.annee": annee,
-            "refine.code_insee_commune": insee,
+            "refine.nom_commune": nom,
             "rows": 1
         }
         try:
@@ -50,11 +34,11 @@ with st.spinner("🔍 Récupération des données Enedis pour 20 communes..."):
                     conso = fields.get("consommation_mwh", None)
                     secteur = fields.get("secteur_d_activite", "")
                     if conso:
-                        data.append({"Commune": nom, "INSEE": insee, "Consommation_MWh": conso, "Secteur": secteur})
+                        data.append({"Commune": nom, "Consommation_MWh": conso, "Secteur": secteur})
             else:
-                st.error(f"❌ Erreur API pour {nom} ({insee})")
+                st.error(f"❌ Erreur API pour {nom}")
         except Exception as e:
-            st.error(f"❌ Exception pour {nom} ({insee}) : {e}")
+            st.error(f"❌ Exception pour {nom} : {e}")
 
 if data:
     df = pd.DataFrame(data)
