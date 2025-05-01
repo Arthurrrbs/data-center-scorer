@@ -9,7 +9,7 @@ st.title("🏙️ Scoring Communal via API Enedis – Consommation électrique")
 
 # -------------------------
 # Fonction API Geo pour communes
-def get_communes_france(limit=500):
+def get_communes_france(limit=20):
     url = "https://geo.api.gouv.fr/communes"
     params = {
         "fields": "nom,population,centre",
@@ -48,8 +48,8 @@ def get_consommation(commune, annee="2022"):
 poids = st.slider("🏠 Pondération de la variable consommation (entre 0 et 1)", 0.0, 1.0, 1.0, step=0.1)
 
 # -------------------------
-# Chargement des 500 communes les plus peuplées
-communes_data = get_communes_france(500)
+# Chargement des 20 communes les plus peuplées
+communes_data = get_communes_france(20)
 data = []
 
 with st.spinner("🚀 Récupération des données Enedis en cours..."):
