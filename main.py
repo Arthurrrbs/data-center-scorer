@@ -15,8 +15,8 @@ if st.button("🔄 Recharger la carte"):
 @st.cache_data
 def load_data():
     df = pd.read_csv("score_variables_departements_101.csv", sep=",")
-    df = df.dropna(subset=["Département"])
-    df = df[~df["Département"].str.strip().eq("")]
+    df = df.dropna(subset=["Département"])  # supprime lignes vides
+    df = df[~df["Département"].str.strip().eq("")]  # supprime noms vides
     df = df.drop_duplicates(subset=["Département"])
     df["Département"] = df["Département"].str.strip()
     return df
@@ -27,21 +27,13 @@ df = load_data()
 geojson_url = "https://france-geojson.gregoiredavid.fr/repo/departements.geojson"
 geojson_data = requests.get(geojson_url).json()
 
-# --- Ajouter (code) au nom des départements pour l'affichage
-for feature in geojson_data["features"]:
-    nom = feature["properties"]["nom"].strip()
-    code = feature["properties"]["code"]
-    feature["properties"]["nom"] = f"{nom} ({code})"
-
-# --- Vérification des noms de départements
-geojson_depts = [feature['properties']['nom'] for feature in geojson_data['features']]
+# --- Vérification des noms de départements ---
+geojson_depts = [feature['properties']['nom'].strip() for feature in geojson_data['features']]
 csv_depts = df["Département"].unique().tolist()
 
 st.write(f"📊 Nombre de départements dans le CSV : {len(df)}")
 
-# Correspondance : retirer (code) pour comparer
-geojson_base_names = [name.split(" (")[0] for name in geojson_depts]
-missing = sorted(set(geojson_base_names) - set(csv_depts))
+missing = sorted(set(geojson_depts) - set(csv_depts))
 if missing:
     st.warning(f"❌ Départements présents dans le GeoJSON mais absents du CSV : {missing}")
 
@@ -89,16 +81,16 @@ folium.Choropleth(
     legend_name="Score d'Attractivité Global"
 ).add_to(m)
 
-# --- Ajouter les scores dans les propriétés GeoJSON
+# --- Ajouter les scores dans les propriétés du GeoJSON
 for feature in geojson_data['features']:
-    original_nom = feature["properties"]["nom"].split(" (")[0]
-    row = df[df["Département"] == original_nom]
+    dept_name = feature["properties"]["nom"].strip()
+    row = df[df["Département"] == dept_name]
     if not row.empty:
         feature["properties"]["Score_Global"] = round(row.iloc[0]["Score_Global"], 2)
     else:
         feature["properties"]["Score_Global"] = "N/A"
 
-# --- Tooltip interactif
+# --- Tooltip interactif au survol
 folium.GeoJson(
     geojson_data,
     style_function=lambda feature: {
@@ -114,5 +106,5 @@ folium.GeoJson(
     )
 ).add_to(m)
 
-# --- Affichage de la carte dans Streamlit
+# --- Affichage Streamlit
 folium_static(m)
