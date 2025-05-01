@@ -21,20 +21,22 @@ with st.spinner("🔍 Récupération des données Enedis pour 20 communes..."):
         url = "https://data.enedis.fr/api/records/1.0/search/"
         params = {
             "dataset": "consommation-electrique-par-secteur-dactivite-commune",
+            "q": nom,
             "refine.annee": annee,
-            "refine.nom_commune": nom,
-            "rows": 1
+            "rows": 10
         }
         try:
             response = requests.get(url, params=params)
             if response.status_code == 200:
                 records = response.json().get("records", [])
-                if records:
-                    fields = records[0]["fields"]
-                    conso = fields.get("consommation_mwh", None)
-                    secteur = fields.get("secteur_d_activite", "")
-                    if conso:
-                        data.append({"Commune": nom, "Consommation_MWh": conso, "Secteur": secteur})
+                for rec in records:
+                    fields = rec.get("fields", {})
+                    if fields.get("nom_commune", "").lower() == nom.lower():
+                        conso = fields.get("consommation_mwh", None)
+                        secteur = fields.get("secteur_d_activite", "")
+                        if conso:
+                            data.append({"Commune": nom, "Consommation_MWh": conso, "Secteur": secteur})
+                        break
             else:
                 st.error(f"❌ Erreur API pour {nom}")
         except Exception as e:
