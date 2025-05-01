@@ -127,3 +127,14 @@ folium.GeoJson(
 
 # --- Affichage final dans Streamlit
 folium_static(m)
+
+# --- Top 5 des départements les mieux notés
+top5 = df[["Département", "Score_Global"]].sort_values(by="Score_Global", ascending=False).head(5)
+worst5 = df[["Département", "Score_Global"]].sort_values(by="Score_Global", ascending=True).head(5)
+
+st.subheader("🏆 Top 5 des départements les mieux notés")
+st.table(top5.reset_index(drop=True).style.format({"Score_Global": "{:.2f}"}))
+
+st.subheader("⚠️ Top 5 des départements les moins bien notés")
+st.table(worst5.reset_index(drop=True).style.format({"Score_Global": "{:.2f}"}))
+
