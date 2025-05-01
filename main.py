@@ -18,6 +18,9 @@ def load_data():
 
 df = load_data()
 
+st.write("🧪 Première ligne du fichier :", df.iloc[0])
+
+
 # --- Vérification des noms de colonnes réels ---
 st.write("✅ Colonnes détectées :", df.columns.tolist())
 
