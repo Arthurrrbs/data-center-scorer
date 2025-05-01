@@ -14,7 +14,7 @@ if st.button("🔄 Recharger la carte"):
 # --- Charger les données avec le bon séparateur ---
 @st.cache_data
 def load_data():
-    df = pd.read_csv("score_variables_departements.csv", sep=",")
+    df = pd.read_csv("score_variables_departements_101.csv", sep=",")
     return df
 
 df = load_data()
