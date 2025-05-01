@@ -7,11 +7,15 @@ from streamlit_folium import folium_static
 st.set_page_config(layout="wide")
 st.title("📍 Scoring Multi-Variable des Départements pour Data Centers")
 
-# --- Recharger ---
+# --- État initial : réinitialisation sliders ---
+if "reset_weights" not in st.session_state:
+    st.session_state.reset_weights = False
+
+# --- Bouton de rechargement ---
 if st.button("🔄 Recharger la carte"):
     st.rerun()
 
-# --- Charger CSV ---
+# --- Chargement CSV ---
 @st.cache_data
 def load_data():
     df = pd.read_csv("score_variables_departements_101.csv", sep=",")
@@ -23,18 +27,18 @@ def load_data():
 
 df = load_data()
 
-# --- Charger GeoJSON ---
+# --- Chargement GeoJSON ---
 geojson_url = "https://france-geojson.gregoiredavid.fr/repo/departements.geojson"
 geojson_data = requests.get(geojson_url).json()
 
-# --- Vérif noms départements ---
+# --- Vérification noms GeoJSON vs CSV ---
 geojson_depts = [f['properties']['nom'].strip() for f in geojson_data['features']]
 csv_depts = df["Département"].unique().tolist()
 missing = sorted(set(geojson_depts) - set(csv_depts))
 if missing:
     st.warning(f"❌ Départements présents dans le GeoJSON mais absents du CSV : {missing}")
 
-# --- Variables utilisées ---
+# --- Variables clés ---
 variables = [
     "PIB_milliards", "Prix_Electricité", "Couverture_Fibre_%",
     "Densite_pop_hab_km2", "Surface_disponible_km2", "Nb_entreprises",
@@ -42,36 +46,46 @@ variables = [
     "Acces_Eau_industrielle", "Indice_canicule"
 ]
 
-# --- Vérifier colonnes ---
+# --- Vérification colonnes présentes ---
 missing_cols = [v for v in variables if v not in df.columns]
 if missing_cols:
     st.error(f"🚨 Colonnes manquantes : {missing_cols}")
     st.stop()
 
-# --- Sliders de pondération ---
+# --- Sidebar : sliders de pondération + bouton reset ---
 st.sidebar.title("⚖️ Pondération des variables")
+
+# Bouton reset
+if st.sidebar.button("🔁 Réinitialiser les pondérations"):
+    st.session_state.reset_weights = True
+else:
+    st.session_state.reset_weights = False
+
+# Création sliders
 weights = {}
 for var in variables:
-    weights[var] = st.sidebar.slider(var, 0, 100, 10)
+    default = 10 if st.session_state.reset_weights else st.session_state.get(f"weight_{var}", 10)
+    weights[var] = st.sidebar.slider(var, 0, 100, default, key=f"weight_{var}")
 
+# Vérifier pondération totale
 total_weight = sum(weights.values())
 if total_weight == 0:
-    st.error("⚠️ La somme des pondérations est nulle. Augmente au moins une variable.")
+    st.error("⚠️ La somme des pondérations est nulle. Merci d’augmenter au moins une variable.")
     st.stop()
 
-# --- Normalisation ---
+# --- Normalisation des variables ---
 for var in variables:
     if var in ["Prix_Electricité", "Indice_canicule"]:  # Moins = mieux
         df[f"{var}_norm"] = (df[var].max() - df[var]) / (df[var].max() - df[var].min())
-    else:
+    else:  # Plus = mieux
         df[f"{var}_norm"] = (df[var] - df[var].min()) / (df[var].max() - df[var].min())
 
-# --- Score pondéré ---
+# --- Score pondéré final ---
 df["Score_Global"] = sum(
     (weights[v] / total_weight) * df[f"{v}_norm"] for v in variables
 )
 
-# --- Carte ---
+# --- Carte Folium ---
 m = folium.Map(location=[46.5, 2.5], zoom_start=6)
 
 folium.Choropleth(
@@ -86,7 +100,7 @@ folium.Choropleth(
     legend_name="Score d'Attractivité Global"
 ).add_to(m)
 
-# --- Ajouter score dans GeoJSON
+# --- Ajouter les scores dans le GeoJSON pour le tooltip
 for feature in geojson_data['features']:
     dept_name = feature["properties"]["nom"].strip()
     row = df[df["Département"] == dept_name]
@@ -95,7 +109,7 @@ for feature in geojson_data['features']:
     else:
         feature["properties"]["Score_Global"] = "N/A"
 
-# --- Tooltip
+# --- Tooltip interactif
 folium.GeoJson(
     geojson_data,
     style_function=lambda feature: {
@@ -111,5 +125,5 @@ folium.GeoJson(
     )
 ).add_to(m)
 
-# --- Afficher carte
+# --- Affichage final dans Streamlit
 folium_static(m)
