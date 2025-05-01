@@ -19,11 +19,6 @@ def load_data():
 
 df = load_data()
 
-# --- Nettoyer les noms de département pour matcher le GeoJSON ---
-df["Département"] = df["Département"].apply(
-    lambda x: unicodedata.normalize('NFKD', x).encode('ascii', errors='ignore').decode('utf-8')
-)
-
 # --- Afficher les colonnes pour vérification ---
 st.write("📌 Colonnes détectées :", df.columns.tolist())
 st.write("🔍 Aperçu du fichier :", df.head())
