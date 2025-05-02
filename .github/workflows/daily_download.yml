@@ -1,4 +1,4 @@
-name: Téléchargement quotidien des données Enedis (TEST sans push)
+name: Téléchargement quotidien des données Enedis
 
 on:
   schedule:
@@ -24,9 +24,13 @@ jobs:
       - name: 🚀 Lancer le script de téléchargement
         run: python scripts/enedis_downloader.py
 
-      - name: ✅ TEST de commit sans push
+      - name: ✅ Commit et push des nouvelles données
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
           git config --global user.name "github-actions"
           git config --global user.email "actions@github.com"
-          git status
-          echo "✅ Le fichier CSV est prêt, test sans push pour vérifier"
+          git remote set-url origin https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}
+          git add data/enedis_conso_communes_*.csv
+          git commit -m "🆕 Données Enedis mises à jour automatiquement" || echo "Aucun changement à commit"
+          git push || echo "Push déjà à jour ou échoué"
