@@ -5,7 +5,7 @@ import folium
 from streamlit_folium import folium_static
 
 st.set_page_config(layout="wide")
-st.title("🔌 Carte interactive – Consommation électrique des 100 plus grandes communes (données Enedis)")
+st.title("🔌 Carte – Consommation électrique des 100 plus grandes communes françaises")
 
 @st.cache_data
 def get_top_communes(n=100):
@@ -48,12 +48,12 @@ def get_commune_data(code_insee, nom_commune, annee="2023"):
         return None
     return None
 
-# --- Charger les 100 plus grandes communes
+# Charger les communes dynamiquement
 communes = get_top_communes(100)
 
-# --- Agréger la consommation
+# Agréger les données Enedis
 data = []
-with st.spinner("🔍 Agrégation des données Enedis en cours..."):
+with st.spinner("🔍 Récupération des données Enedis..."):
     for name, info in communes.items():
         total = get_commune_data(info["code"], name)
         if total:
@@ -65,7 +65,6 @@ with st.spinner("🔍 Agrégation des données Enedis en cours..."):
                 "Consommation_Totale_MWh": total
             })
 
-# --- Affichage
 if data:
     df = pd.DataFrame(data)
     df_sorted = df.sort_values(by="Consommation_Totale_MWh", ascending=False)
@@ -73,17 +72,17 @@ if data:
     st.success("✅ Données récupérées pour les communes suivantes :")
     st.dataframe(df_sorted[["Commune", "Consommation_Totale_MWh"]])
 
-    # --- Carte Folium
-    m = folium.Map(location=[46.5, 2.5], zoom_start=6)
+    # Carte avec fond type Jawg Streets
+    m = folium.Map(location=[46.5, 2.5], zoom_start=6, tiles="CartoDB positron")
 
     for _, row in df_sorted.iterrows():
         folium.CircleMarker(
             location=[row["Latitude"], row["Longitude"]],
             radius=max(row["Consommation_Totale_MWh"] ** 0.5 / 10, 3),
-            color="blue",
+            color="#0078FF",
             fill=True,
             fill_opacity=0.6,
-            popup=f"{row['Commune']} : {int(row['Consommation_Totale_MWh'])} MWh"
+            popup=folium.Popup(f"<b>{row['Commune']}</b><br>{int(row['Consommation_Totale_MWh'])} MWh", max_width=200)
         ).add_to(m)
 
     folium_static(m)
