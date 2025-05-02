@@ -3,7 +3,7 @@ name: Téléchargement quotidien des données Enedis
 on:
   schedule:
     - cron: '0 6 * * *'  # Tous les jours à 6h UTC
-  workflow_dispatch:  # Permet un lancement manuel
+  workflow_dispatch:  # Permet aussi un lancement manuel
 
 jobs:
   fetch_enedis_data:
@@ -24,13 +24,13 @@ jobs:
       - name: 🚀 Lancer le script de téléchargement
         run: python scripts/enedis_downloader.py
 
-       - name: ✅ Commit et push des nouvelles données
-      env:
-        GH_TOKEN: ${{ secrets.GH_PAT }}
-      run: |
-        git config --global user.name "github-actions"
-        git config --global user.email "actions@github.com"
-        git remote set-url origin https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}
-        git add data/enedis_conso_communes_*.csv
-        git commit -m "🆕 Données Enedis mises à jour automatiquement"
-        git push
+      - name: ✅ Commit et push des nouvelles données
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "actions@github.com"
+          git remote set-url origin https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}
+          git add data/enedis_conso_communes_*.csv
+          git commit -m "🆕 Données Enedis mises à jour automatiquement"
+          git push
