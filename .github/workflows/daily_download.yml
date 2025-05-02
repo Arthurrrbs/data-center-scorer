@@ -2,8 +2,8 @@ name: Téléchargement quotidien des données Enedis
 
 on:
   schedule:
-    - cron: '0 6 * * *'  # Tous les jours à 6h du matin UTC
-  workflow_dispatch:  # Permet de lancer manuellement
+    - cron: '0 6 * * *'  # Tous les jours à 6h UTC
+  workflow_dispatch:  # Permet un lancement manuel
 
 jobs:
   fetch_enedis_data:
