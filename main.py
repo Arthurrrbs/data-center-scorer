@@ -1,91 +1,103 @@
 import streamlit as st
-import requests
 import pandas as pd
+import requests
 import folium
+import json
 from streamlit_folium import folium_static
 
 st.set_page_config(layout="wide")
-st.title("🔌 Carte – Consommation électrique des 100 plus grandes communes françaises")
+st.title("📡 Carte des Consommations Électriques par Commune – Données API Enedis (2023)")
 
+# Étape 1 – Télécharger les 100 premières communes (code INSEE + nom)
 @st.cache_data
-def get_top_communes(n=100):
-    url = "https://geo.api.gouv.fr/communes?fields=nom,code,centre,population&format=json&geometry=centre"
+def load_communes(n=100):
+    url = "https://geo.api.gouv.fr/communes?fields=nom,code,centre&format=json&geometry=centre"
     response = requests.get(url)
-    communes_data = {}
     if response.status_code == 200:
-        all_communes = response.json()
-        sorted_communes = sorted(
-            [c for c in all_communes if "centre" in c and c.get("population")],
-            key=lambda x: x["population"], reverse=True
-        )[:n]
-        for c in sorted_communes:
-            name = c["nom"]
-            code = c["code"]
-            lon, lat = c["centre"]["coordinates"]
-            communes_data[name] = {"code": code, "lat": lat, "lon": lon}
-    return communes_data
+        data = response.json()
+        return pd.DataFrame(data[:n])
+    else:
+        return pd.DataFrame()
 
-def get_commune_data(code_insee, nom_commune, annee="2023"):
-    url = "https://data.enedis.fr/api/records/1.0/search/"
-    params = {
-        "dataset": "consommation-electrique-par-secteur-dactivite-commune",
-        "q": nom_commune,
-        "rows": 100
-    }
-    try:
-        response = requests.get(url, params=params)
-        if response.status_code == 200:
-            records = response.json().get("records", [])
-            total_conso = 0
-            for rec in records:
-                fields = rec.get("fields", {})
-                if str(fields.get("code_commune")) == code_insee and str(fields.get("annee")) == annee:
-                    conso = fields.get("conso_totale_mwh", 0)
-                    if conso:
-                        total_conso += conso
-            return total_conso
-    except:
-        return None
-    return None
+communes_df = load_communes(100)
+st.success(f"✅ {len(communes_df)} communes chargées.")
 
-# Charger les communes dynamiquement
-communes = get_top_communes(100)
+# Étape 2 – Récupération des consommations depuis l’API Enedis
+@st.cache_data
+def get_consumption_data(communes_df, annee="2023"):
+    base_url = "https://data.enedis.fr/api/records/1.0/search/"
+    results = []
+    for _, row in communes_df.iterrows():
+        code = row["code"]
+        nom = row["nom"]
+        try:
+            params = {
+                "dataset": "consommation-electrique-par-secteur-dactivite-commune",
+                "q": nom,
+                "rows": 100
+            }
+            r = requests.get(base_url, params=params)
+            if r.status_code == 200:
+                total = 0
+                records = r.json().get("records", [])
+                for rec in records:
+                    fields = rec.get("fields", {})
+                    if str(fields.get("code_commune")) == code and str(fields.get("annee")) == annee:
+                        total += fields.get("conso_totale_mwh", 0)
+                if total > 0:
+                    results.append({"code_commune": code, "nom_commune": nom, "consommation_mwh": total})
+        except:
+            continue
+    return pd.DataFrame(results)
 
-# Agréger les données Enedis
-data = []
-with st.spinner("🔍 Récupération des données Enedis..."):
-    for name, info in communes.items():
-        total = get_commune_data(info["code"], name)
-        if total:
-            data.append({
-                "Commune": name,
-                "Code_INSEE": info["code"],
-                "Latitude": info["lat"],
-                "Longitude": info["lon"],
-                "Consommation_Totale_MWh": total
-            })
+with st.spinner("🔌 Récupération des données de consommation..."):
+    df_conso = get_consumption_data(communes_df)
 
-if data:
-    df = pd.DataFrame(data)
-    df_sorted = df.sort_values(by="Consommation_Totale_MWh", ascending=False)
+if df_conso.empty:
+    st.warning("⚠️ Aucune donnée récupérée.")
+    st.stop()
 
-    st.success("✅ Données récupérées pour les communes suivantes :")
-    st.dataframe(df_sorted[["Commune", "Consommation_Totale_MWh"]])
+# Étape 3 – Charger le GeoJSON en ligne depuis GitHub
+url_geojson = "https://raw.githubusercontent.com/gregoiredavid/france-geojson/master/communes.geojson"
+geojson_data = requests.get(url_geojson).json()
 
-    # Carte avec fond type Jawg Streets
-    m = folium.Map(location=[46.5, 2.5], zoom_start=6, tiles="CartoDB positron")
+# Étape 4 – Ajouter les consommations dans le GeoJSON
+for feature in geojson_data["features"]:
+    code = feature["properties"]["code"]
+    match = df_conso[df_conso["code_commune"] == code]
+    if not match.empty:
+        feature["properties"]["conso"] = int(match["consommation_mwh"].values[0])
+    else:
+        feature["properties"]["conso"] = None
 
-    for _, row in df_sorted.iterrows():
-        folium.CircleMarker(
-            location=[row["Latitude"], row["Longitude"]],
-            radius=max(row["Consommation_Totale_MWh"] ** 0.5 / 10, 3),
-            color="#0078FF",
-            fill=True,
-            fill_opacity=0.6,
-            popup=folium.Popup(f"<b>{row['Commune']}</b><br>{int(row['Consommation_Totale_MWh'])} MWh", max_width=200)
-        ).add_to(m)
+# Étape 5 – Affichage de la carte
+m = folium.Map(location=[46.8, 2.5], zoom_start=6, tiles="CartoDB positron")
 
-    folium_static(m)
+folium.Choropleth(
+    geo_data=geojson_data,
+    data=df_conso,
+    columns=["code_commune", "consommation_mwh"],
+    key_on="feature.properties.code",
+    fill_color="YlOrRd",
+    fill_opacity=0.7,
+    line_opacity=0.2,
+    nan_fill_color="lightgrey",
+    legend_name="Consommation électrique (MWh)"
+).add_to(m)
 
-else:
-    st.warning("⚠️ Aucune donnée récupérée via Enedis.")
+folium.GeoJson(
+    geojson_data,
+    style_function=lambda feature: {
+        "fillOpacity": 0,
+        "color": "transparent",
+        "weight": 0
+    },
+    tooltip=folium.GeoJsonTooltip(
+        fields=["nom", "conso"],
+        aliases=["Commune :", "Consommation (MWh) :"],
+        localize=True,
+        sticky=True
+    )
+).add_to(m)
+
+folium_static(m)
